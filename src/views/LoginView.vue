@@ -67,12 +67,6 @@
           <span v-if="errors.password" class="field-error">{{ errors.password }}</span>
         </div>
 
-        <!-- Credenciales de prueba -->
-        <div class="hint-box">
-          <span class="hint-label">Credenciales de prueba:</span>
-          <code>admin@vue.com</code> / <code>vue1234</code>
-        </div>
-
         <!-- Botón submit -->
         <button
           type="submit"
@@ -84,6 +78,12 @@
           <span v-else class="spinner"></span>
         </button>
 
+        <!-- Link a registro -->
+        <p class="register-link">
+          ¿No tienes cuenta?
+          <RouterLink to="/register" class="link">Regístrate</RouterLink>
+        </p>
+
       </form>
     </div>
   </div>
@@ -91,10 +91,11 @@
 
 <script setup>
 import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 
 const router = useRouter()
+const route = useRoute()
 const { login } = useAuth()
 
 // ── Estado del formulario ──
@@ -139,31 +140,27 @@ function isFormValid() {
   return !errors.email && !errors.password
 }
 
-// ── Login simulado ──
+// ── Login con Supabase ──
 async function handleLogin() {
   errorMsg.value = ''
-
   if (!isFormValid()) return
 
   isLoading.value = true
-
   try {
-    // Simulamos una llamada a API con un delay
-    await new Promise(resolve => setTimeout(resolve, 1200))
+    const result = await login(form.email, form.password)
 
-    // Credenciales de prueba
-    const FAKE_USER = { email: 'admin@vue.com', password: 'vue1234' }
-
-    if (form.email === FAKE_USER.email && form.password === FAKE_USER.password) {
-      // Login exitoso
-      login(
-        { name: 'Admin', email: form.email },
-        'fake-jwt-token-abc123'
-      )
-      await router.push('/dashboard')
-    } else {
-      errorMsg.value = 'Credenciales incorrectas. Intenta de nuevo.'
+    if (!result.ok) {
+      errorMsg.value = result.error || 'Credenciales incorrectas. Intenta de nuevo.'
+      return
     }
+
+    // Redirigir al dashboard o a la página que intentaba acceder
+    const redirectTo = route.query.redirect || '/dashboard'
+    await router.push(redirectTo)
+    
+  } catch (error) {
+    console.error('Error en login:', error)
+    errorMsg.value = 'Error al iniciar sesión. Por favor, intenta de nuevo.'
   } finally {
     isLoading.value = false
   }
@@ -355,30 +352,6 @@ async function handleLogin() {
 
 .field-toggle:hover { opacity: 1; }
 
-/* ── HINT BOX ── */
-.hint-box {
-  background: rgba(200, 169, 110, 0.06);
-  border: 1px dashed rgba(200, 169, 110, 0.2);
-  border-radius: 8px;
-  padding: 0.65rem 0.9rem;
-  font-size: 0.8rem;
-  color: #7a7168;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.hint-label { color: #9a938c; }
-
-code {
-  background: rgba(200, 169, 110, 0.12);
-  color: #c8a96e;
-  padding: 0.1rem 0.4rem;
-  border-radius: 4px;
-  font-size: 0.8rem;
-}
-
 /* ── BOTÓN SUBMIT ── */
 .btn-submit {
   margin-top: 0.5rem;
@@ -419,5 +392,23 @@ code {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* ── REGISTER LINK ── */
+.register-link {
+  font-size: 0.85rem;
+  color: #5a5550;
+  text-align: center;
+  margin: 0.5rem 0 0;
+}
+
+.link {
+  color: #c8a96e;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.link:hover {
+  text-decoration: underline;
 }
 </style>

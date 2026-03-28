@@ -7,6 +7,7 @@ const HomeView      = () => import('@/views/HomeView.vue')
 const LoginView     = () => import('@/views/LoginView.vue')
 const DashboardView = () => import('@/views/DashboardView.vue')
 const NotFoundView  = () => import('@/views/NotFoundView.vue')
+const RegisterView = () => import('@/views/RegisterView.vue')
 
 const routes = [
   {
@@ -28,6 +29,16 @@ const routes = [
       guestOnly: true,   // Si ya estás autenticado, te redirige al dashboard
     },
   },
+  {
+  path: '/register',
+  name: 'register',
+  component: RegisterView,
+  meta: {
+    title: 'Crear cuenta',
+    requiresAuth: false,
+    guestOnly: true,
+  },
+},
   {
     path: '/dashboard',
     name: 'dashboard',
