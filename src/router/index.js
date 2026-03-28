@@ -2,12 +2,15 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 
+
 // Importación lazy de vistas (carga bajo demanda)
 const HomeView      = () => import('@/views/HomeView.vue')
 const LoginView     = () => import('@/views/LoginView.vue')
 const DashboardView = () => import('@/views/DashboardView.vue')
 const NotFoundView  = () => import('@/views/NotFoundView.vue')
 const RegisterView = () => import('@/views/RegisterView.vue')
+const RecoverPassView = () => import('@/views/RecoverPassView.vue')
+const UpdatePasswordView = () => import('@/views/UpdatePasswordView.vue')
 
 const routes = [
   {
@@ -54,6 +57,16 @@ const routes = [
     name: 'not-found',
     component: NotFoundView,
     meta: { title: 'Página no encontrada' },
+  },
+  {
+    path: '/recover-password',
+    name: 'RecoverPassword',
+    component: RecoverPassView
+  },
+  {
+    path: '/update-password',
+    name: 'UpdatePassword',
+    component: UpdatePasswordView
   },
 ]
 

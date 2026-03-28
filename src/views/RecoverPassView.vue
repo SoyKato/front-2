@@ -1,17 +1,26 @@
-<!-- src/views/LoginView.vue -->
+<!-- src/views/RecoverPassView.vue -->
 <template>
-  <div class="login-page">
+  <div class="recover-page">
     <!-- Fondo decorativo -->
     <div class="bg-grid" aria-hidden="true"></div>
     <div class="bg-glow" aria-hidden="true"></div>
 
-    <div class="login-card">
+    <div class="recover-card">
       <!-- Encabezado -->
       <div class="card-header">
-        <span class="card-icon">⬡</span>
-        <h1 class="card-title">Bienvenido</h1>
-        <p class="card-subtitle">Ingresa tus credenciales para continuar</p>
+        <span class="card-icon">🔐</span>
+        <h1 class="card-title">Recuperar contraseña</h1>
+        <p class="card-subtitle">
+          Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña
+        </p>
       </div>
+
+      <!-- Alerta de éxito -->
+      <Transition name="alert">
+        <div v-if="successMsg" class="alert-success" role="alert">
+          <span>✓</span> {{ successMsg }}
+        </div>
+      </Transition>
 
       <!-- Alerta de error -->
       <Transition name="alert">
@@ -21,7 +30,7 @@
       </Transition>
 
       <!-- Formulario -->
-      <form class="login-form" @submit.prevent="handleLogin" novalidate>
+      <form class="recover-form" @submit.prevent="handleRecover" novalidate>
 
         <!-- Campo email -->
         <div class="field" :class="{ 'field--error': errors.email }">
@@ -41,32 +50,6 @@
           <span v-if="errors.email" class="field-error">{{ errors.email }}</span>
         </div>
 
-        <!-- Campo contraseña -->
-        <div class="field" :class="{ 'field--error': errors.password }">
-          <label for="password" class="field-label">Contraseña</label>
-          <div class="field-input-wrap">
-            <span class="field-icon">🔑</span>
-            <input
-              id="password"
-              v-model="form.password"
-              :type="showPassword ? 'text' : 'password'"
-              class="field-input"
-              placeholder="••••••••"
-              autocomplete="current-password"
-              @blur="validatePassword"
-            />
-            <button
-              type="button"
-              class="field-toggle"
-              @click="showPassword = !showPassword"
-              :aria-label="showPassword ? 'Ocultar contraseña' : 'Ver contraseña'"
-            >
-              {{ showPassword ? '🙈' : '👁' }}
-            </button>
-          </div>
-          <span v-if="errors.password" class="field-error">{{ errors.password }}</span>
-        </div>
-
         <!-- Botón submit -->
         <button
           type="submit"
@@ -74,23 +57,14 @@
           :disabled="isLoading"
           :class="{ 'btn-submit--loading': isLoading }"
         >
-          <span v-if="!isLoading">Iniciar sesión →</span>
+          <span v-if="!isLoading">Enviar instrucciones →</span>
           <span v-else class="spinner"></span>
         </button>
 
-        <!-- Después del campo contraseña, antes del botón submit -->
-        <div class="forgot-link">
-          <RouterLink to="/recover-password" class="forgot-link-text">
-            ¿Olvidaste tu contraseña?
-          </RouterLink>
-        </div>
-
-
-
-        <!-- Link a registro -->
-        <p class="register-link">
-          ¿No tienes cuenta?
-          <RouterLink to="/register" class="link">Regístrate</RouterLink>
+        <!-- Link a login -->
+        <p class="login-link">
+          ¿Recordaste tu contraseña?
+          <RouterLink to="/login" class="link">Iniciar sesión</RouterLink>
         </p>
 
       </form>
@@ -100,29 +74,26 @@
 
 <script setup>
 import { ref, reactive } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 
 const router = useRouter()
-const route = useRoute()
-const { login } = useAuth()
+const { recoverPassword } = useAuth()
 
 // ── Estado del formulario ──
 const form = reactive({
   email: '',
-  password: '',
 })
 
 const errors = reactive({
   email: '',
-  password: '',
 })
 
-const showPassword = ref(false)
 const isLoading = ref(false)
 const errorMsg = ref('')
+const successMsg = ref('')
 
-// ── Validaciones individuales ──
+// ── Validaciones ──
 function validateEmail() {
   if (!form.email) {
     errors.email = 'El correo es obligatorio.'
@@ -133,43 +104,37 @@ function validateEmail() {
   }
 }
 
-function validatePassword() {
-  if (!form.password) {
-    errors.password = 'La contraseña es obligatoria.'
-  } else if (form.password.length < 6) {
-    errors.password = 'Mínimo 6 caracteres.'
-  } else {
-    errors.password = ''
-  }
-}
-
 function isFormValid() {
   validateEmail()
-  validatePassword()
-  return !errors.email && !errors.password
+  return !errors.email
 }
 
-// ── Login con Supabase ──
-async function handleLogin() {
+// ── Enviar recuperación ──
+async function handleRecover() {
   errorMsg.value = ''
+  successMsg.value = ''
+  
   if (!isFormValid()) return
 
   isLoading.value = true
   try {
-    const result = await login(form.email, form.password)
+    const result = await recoverPassword(form.email)
 
     if (!result.ok) {
-      errorMsg.value = result.error || 'Credenciales incorrectas. Intenta de nuevo.'
+      errorMsg.value = result.error || 'Error al enviar el correo. Intenta de nuevo.'
       return
     }
 
-    // Redirigir al dashboard o a la página que intentaba acceder
-    const redirectTo = route.query.redirect || '/dashboard'
-    await router.push(redirectTo)
+    successMsg.value = result.message
+    
+    // Opcional: redirigir después de 5 segundos
+    setTimeout(() => {
+      router.push('/login')
+    }, 5000)
     
   } catch (error) {
-    console.error('Error en login:', error)
-    errorMsg.value = 'Error al iniciar sesión. Por favor, intenta de nuevo.'
+    console.error('Error en recuperación:', error)
+    errorMsg.value = 'Error al procesar la solicitud. Por favor, intenta de nuevo.'
   } finally {
     isLoading.value = false
   }
@@ -178,7 +143,7 @@ async function handleLogin() {
 
 <style scoped>
 /* ── PÁGINA ── */
-.login-page {
+.recover-page {
   min-height: calc(100vh - 65px);
   display: flex;
   align-items: center;
@@ -211,7 +176,7 @@ async function handleLogin() {
 }
 
 /* ── CARD ── */
-.login-card {
+.recover-card {
   position: relative;
   width: 100%;
   max-width: 420px;
@@ -238,15 +203,15 @@ async function handleLogin() {
 
 .card-icon {
   display: block;
-  font-size: 2rem;
+  font-size: 2.5rem;
   color: #c8a96e;
   margin-bottom: 0.75rem;
-  animation: pulse 3s ease-in-out infinite;
+  animation: bounce 2s ease-in-out infinite;
 }
 
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
 }
 
 .card-title {
@@ -263,9 +228,10 @@ async function handleLogin() {
   color: #6b6560;
   font-size: 0.88rem;
   margin: 0;
+  line-height: 1.5;
 }
 
-/* ── ALERTA ── */
+/* ── ALERTAS ── */
 .alert-error {
   background: rgba(224, 112, 112, 0.1);
   border: 1px solid rgba(224, 112, 112, 0.3);
@@ -279,11 +245,24 @@ async function handleLogin() {
   gap: 0.5rem;
 }
 
+.alert-success {
+  background: rgba(111, 207, 151, 0.1);
+  border: 1px solid rgba(111, 207, 151, 0.3);
+  color: #6fcf97;
+  border-radius: 8px;
+  padding: 0.65rem 1rem;
+  font-size: 0.88rem;
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .alert-enter-active, .alert-leave-active { transition: all 0.3s ease; }
 .alert-enter-from, .alert-leave-to { opacity: 0; transform: translateY(-8px); }
 
 /* ── FORMULARIO ── */
-.login-form {
+.recover-form {
   display: flex;
   flex-direction: column;
   gap: 1.1rem;
@@ -347,20 +326,6 @@ async function handleLogin() {
   color: #e07070;
 }
 
-.field-toggle {
-  position: absolute;
-  right: 0.75rem;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 0.95rem;
-  opacity: 0.6;
-  transition: opacity 0.2s;
-  padding: 0;
-}
-
-.field-toggle:hover { opacity: 1; }
-
 /* ── BOTÓN SUBMIT ── */
 .btn-submit {
   margin-top: 0.5rem;
@@ -403,8 +368,8 @@ async function handleLogin() {
   to { transform: rotate(360deg); }
 }
 
-/* ── REGISTER LINK ── */
-.register-link {
+/* ── LOGIN LINK ── */
+.login-link {
   font-size: 0.85rem;
   color: #5a5550;
   text-align: center;
@@ -420,21 +385,4 @@ async function handleLogin() {
 .link:hover {
   text-decoration: underline;
 }
-
-.forgot-link {
-  text-align: right;
-  margin-top: -0.5rem;
-}
-
-.forgot-link-text {
-  font-size: 0.75rem;
-  color: #6b6560;
-  text-decoration: none;
-}
-
-.forgot-link-text:hover {
-  color: #c8a96e;
-  text-decoration: underline;
-}
 </style>
-

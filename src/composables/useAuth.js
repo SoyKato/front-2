@@ -219,6 +219,91 @@ export function useAuth() {
     }
   }
 
+
+ // Agregar esta función después de getCurrentUser()
+
+async function recoverPassword(email) {
+  try {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return { ok: false, error: 'Ingresa un correo electrónico válido.' }
+    }
+
+    // Verificar si el email existe en tu tabla primero
+    const { data: userExists, error: checkError } = await supabase
+      .from('registrousuarios')
+      .select('email')
+      .eq('email', email)
+      .maybeSingle()
+
+    console.log('Verificando email en DB:', { userExists, checkError })
+
+    // Si el email no está en tu tabla, no enviar correo
+    if (!userExists) {
+      // No revelamos que no existe por seguridad
+      return { 
+        ok: true, 
+        message: 'Si el correo está registrado, recibirás las instrucciones para recuperar tu contraseña.' 
+      }
+    }
+
+    // Intentar enviar el correo de recuperación
+    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/update-password`,
+    })
+
+    if (error) {
+      console.error('Error de Supabase:', error)
+      
+      // Manejar errores específicos
+      if (error.message?.includes('rate limit') || error.status === 429) {
+        return { 
+          ok: false, 
+          error: 'Has excedido el límite de intentos. Por favor, espera 30 minutos.' 
+        }
+      }
+      
+      if (error.message?.includes('User not found')) {
+        return { 
+          ok: true, 
+          message: 'Si el correo está registrado, recibirás las instrucciones.' 
+        }
+      }
+      
+      return { ok: false, error: error.message }
+    }
+
+    return { 
+      ok: true, 
+      message: 'Se ha enviado un correo con las instrucciones para recuperar tu contraseña.' 
+    }
+  } catch (error) {
+    console.error('Error en recuperación de contraseña:', error)
+    return { ok: false, error: 'Error al procesar la solicitud. Intenta de nuevo más tarde.' }
+  }
+}
+
+async function updatePassword(newPassword) {
+  try {
+    if (!newPassword || newPassword.length < 6) {
+      return { ok: false, error: 'La contraseña debe tener al menos 6 caracteres.' }
+    }
+
+    const { data, error } = await supabase.auth.updateUser({
+      password: newPassword
+    })
+
+    if (error) throw error
+
+    return { 
+      ok: true, 
+      message: 'Contraseña actualizada exitosamente.' 
+    }
+  } catch (error) {
+    console.error('Error actualizando contraseña:', error)
+    return { ok: false, error: error.message }
+  }
+}
+
   return {
     user,
     isAuthenticated,
@@ -227,6 +312,8 @@ export function useAuth() {
     authenticate,
     register,
     emailExists,
-    getCurrentUser
+    getCurrentUser,
+    recoverPassword,
+    updatePassword 
   }
 }
